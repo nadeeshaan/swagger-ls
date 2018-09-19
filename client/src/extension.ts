@@ -7,7 +7,7 @@
 import * as path from 'path';
 
 import { workspace, Disposable, ExtensionContext } from 'vscode';
-import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind } from 'vscode-languageclient';
+import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-languageclient';
 
 const main: string = 'StdioLauncher';
 
@@ -19,8 +19,6 @@ export function activate(context: ExtensionContext) {
 	
 	let jarPath = path.join(__dirname, '..', 'launcher', 'ls-launcher.jar');
 	const args: string[] = ['-cp', jarPath];
-	args.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005,quiet=y');
-	console.log(jarPath);
 	
 	let serverOptions: ServerOptions = {
 		command: excecutable,
@@ -35,7 +33,7 @@ export function activate(context: ExtensionContext) {
 	};
 	
 	// Create the language client and start the client.
-	let disposable = new LanguageClient('languageServerExample', 'Language Server Example', serverOptions, clientOptions).start();
+	let disposable = new LanguageClient('swaggerLS', 'Swagger Language Server', serverOptions, clientOptions).start();
 	
 	// Push the disposable to the context's subscriptions so that the 
 	// client can be deactivated on extension deactivation

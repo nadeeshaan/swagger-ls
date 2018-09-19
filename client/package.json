@@ -1,10 +1,14 @@
 {
   "name": "swagger-language-sever-extension",
   "description": "VSCode Client extension for Swagger",
-  "author": "Nadeeshaan",
-  "license": "MIT",
-  "version": "0.0.1",
+  "author": "Nadeeshaan Gunasinghe",
+  "license": "Apache-2.0",
+  "version": "0.0.1-SNAPSHOT",
   "publisher": "nadeeshaan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nadeeshaan/swagger-ls"
+  },
   "engines": {
     "vscode": "^1.26.0"
   },
@@ -18,9 +22,9 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Example configuration",
+      "title": "Swagger Language Server configuration",
       "properties": {
-        "languageServerExample.maxNumberOfProblems": {
+        "swaggerLS.maxNumberOfProblems": {
           "scope": "resource",
           "type": "number",
           "default": 100,
