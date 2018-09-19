@@ -15,6 +15,7 @@ hs_err_pid*
 # generated files
 target
 results
+*.vsix
 
 # mac
 .DS_Store
@@ -23,3 +24,7 @@ results
 .project
 .settings
 .vscode
+
+#directories
+client/out
+node_modules/

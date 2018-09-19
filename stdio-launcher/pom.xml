@@ -111,7 +111,7 @@
                                 <resource>
                                     <directory>${basedir}/target/</directory>
                                     <include>${project.artifactId}.jar</include>
-                                    <filtering>true</filtering>
+                                    <filtering>false</filtering>
                                 </resource>
                             </resources>
                         </configuration>
