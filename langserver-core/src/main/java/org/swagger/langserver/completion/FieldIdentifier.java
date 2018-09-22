@@ -32,27 +32,46 @@ class FieldIdentifier {
     
     private boolean terminateVisit = false;
 
-    void calculateFieldStack(List<NodeTuple> tuples, int cursorLine, int cursorCol, int parentIndentation) {
+    void calculateFieldStack(List<NodeTuple> tuples, int cursorLine, int cursorCol) {
         for (NodeTuple tuple : tuples) {
+            if (terminateVisit) {
+                // During the recursive visit, terminateVisitor is set to true when the desired scope identified
+                break;
+            }
             String key = ((ScalarNode) tuple.getKeyNode()).getValue();
             int line = tuple.getKeyNode().getStartMark().getLine();
-            int col = tuple.getKeyNode().getStartMark().getColumn();
 
-            if (cursorLine <= line) {
-                if (cursorCol <= parentIndentation) {
-                    this.fieldStack.pop();
-                }
+            if (cursorLine < line) {
+                // If the cursor is before the evaluating token then break the iteration
                 this.terminateVisit = true;
                 break;
-            } else if (tuple.getValueNode() instanceof MappingNode && cursorCol > col) {
+            } else if (withinMappingNode(tuple, cursorCol, cursorLine)) {
+                /*
+                    If the given tuple is a mapping node and the cursor is within the mapping node then add the
+                    mapping node key to field stack.
+                    After traversing all the members of the mapping node remove the added entry to the field stack if 
+                    necessary (During the last item evaluation).
+                 */
                 this.fieldStack.push(key);
-                this.calculateFieldStack(((MappingNode) tuple.getValueNode()).getValue(), cursorLine, cursorCol, col);
+                this.calculateFieldStack(((MappingNode) tuple.getValueNode()).getValue(), cursorLine, cursorCol);
             }
-            
-            if (!terminateVisit && tuples.indexOf(tuple) == tuples.size() - 1 && !fieldStack.isEmpty()) {
-                this.fieldStack.pop();
+
+            if (!terminateVisit && tuples.indexOf(tuple) == tuples.size() - 1) {
+                this.terminateVisit = true;
             }
         }
+    }
+    
+    private static boolean withinMappingNode(NodeTuple tuple, int cursorCol, int cursorLine) {
+        /*
+            If the cursor within the mapping node, need to check whether cursor col is inside the tuple and also
+            nee to check the cursor line within the tuple. Since the tupl
+         */
+        int tupleNodeEndLine = tuple.getValueNode().getEndMark().getLine();
+        int tupleNodeStartCol = tuple.getKeyNode().getStartMark().getColumn();
+        return tuple.getValueNode() instanceof MappingNode
+                && cursorCol > tupleNodeStartCol
+                && cursorLine < tupleNodeEndLine;
     }
 
     Deque<String> getFieldStack() {
