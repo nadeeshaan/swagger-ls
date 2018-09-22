@@ -74,7 +74,7 @@ public class SwaggerTextDocumentService implements TextDocumentService {
                 Path path = Paths.get(new URI(completionParams.getTextDocument().getUri()));
                 Position position = completionParams.getPosition();
                 completionItems = ContentParserUtil.getCompletions(documentManager.getFileContent(path), position);
-            } catch (URISyntaxException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+            } catch (Exception e) {
                 completionItems = new ArrayList<>();
             }
             return Either.forLeft(completionItems);

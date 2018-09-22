@@ -38,6 +38,8 @@ public class SwaggerLanguageServer implements LanguageServer, LanguageClientAwar
     private WorkspaceService workspaceService;
     
     private LanguageClient client;
+    
+    private int shutDownStatus = 1;
 
     public SwaggerLanguageServer() {
         this.textDocumentService = new SwaggerTextDocumentService();
@@ -59,12 +61,13 @@ public class SwaggerLanguageServer implements LanguageServer, LanguageClientAwar
 
     @Override
     public CompletableFuture<Object> shutdown() {
+        this.shutDownStatus = 1;
         return null;
     }
 
     @Override
     public void exit() {
-
+        System.exit(shutDownStatus);
     }
 
     @Override

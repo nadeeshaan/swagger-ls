@@ -22,14 +22,18 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Swagger Language Server configuration",
+      "title": "swaggerls",
       "properties": {
-        "swaggerLS.maxNumberOfProblems": {
-          "scope": "resource",
-          "type": "number",
-          "default": 100,
-          "description": "Controls the maximum number of problems produced by the server."
+        "javahome": {
+          "type": "string",
+          "default": "",
+          "description": "Specifies the path to the java home directory"
         }
+      }
+    },
+    "configurationDefaults": {
+      "[ballerina]": {
+        "editor.wordBasedSuggestions": false
       }
     }
   },

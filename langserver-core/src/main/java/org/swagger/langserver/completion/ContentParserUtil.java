@@ -106,7 +106,7 @@ public class ContentParserUtil {
         iterable.forEach(o -> {
             FieldIdentifier fieldIdentifier = new FieldIdentifier();
             fieldIdentifier
-                    .calculateFieldStack(((MappingNode) o).getValue(), position.getLine(), position.getCharacter(), 0);
+                    .calculateFieldStack(((MappingNode) o).getValue(), position.getLine(), position.getCharacter());
             if (!fieldIdentifier.getFieldStack().isEmpty()) {
                 fieldStack.addAll(fieldIdentifier.getFieldStack());
             }
@@ -146,6 +146,8 @@ public class ContentParserUtil {
 
         Field[] fields = cls.getDeclaredFields();        
 
-        return Arrays.stream(fields).map(Field::getName).collect(Collectors.toList());
+        return Arrays.stream(fields)
+                .filter(field -> !field.getName().equalsIgnoreCase("vendorExtensions"))
+                .map(Field::getName).collect(Collectors.toList());
     }
 }
