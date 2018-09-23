@@ -56,6 +56,8 @@ public class ContentParserUtil {
 
     private static final String LINE_SEPARATOR = System.lineSeparator();
     
+    private static final String SWAGGER_MODEL_PACKAGE = "io.swagger.models";
+    
     private static Iterable<Node> getYAMLNodeTree(String content) {
         Constructor constructor = new Constructor();
         Yaml yaml = new Yaml(constructor);
@@ -104,9 +106,9 @@ public class ContentParserUtil {
         Yaml yaml = new Yaml(constructor);
         Iterable<Node> iterable = yaml.composeAll(new InputStreamReader(new ByteArrayInputStream(content.getBytes())));
         iterable.forEach(o -> {
-            FieldIdentifier fieldIdentifier = new FieldIdentifier();
+            FieldIdentifier fieldIdentifier = new FieldIdentifier(position.getLine(), position.getCharacter());
             fieldIdentifier
-                    .calculateFieldStack(((MappingNode) o).getValue(), position.getLine(), position.getCharacter());
+                    .calculateFieldStack(((MappingNode) o).getValue());
             if (!fieldIdentifier.getFieldStack().isEmpty()) {
                 fieldStack.addAll(fieldIdentifier.getFieldStack());
             }
@@ -132,11 +134,14 @@ public class ContentParserUtil {
 
         for (int i = 0; i < fieldStack.size(); i++) {
             String field = fieldStack.get(i);
-            Method m = cls.getMethod("get" + field.substring(0, 1).toUpperCase() + field.substring(1).toLowerCase());
+            Method m = cls.getMethod("get" + field.substring(0, 1).toUpperCase() + field.substring(1));
             cls = m.getReturnType();
             
             if (cls.equals(Map.class)) {
                 LinkedHashMap invokeResult = (LinkedHashMap) m.invoke(invokeAgainst);
+                if (fieldStack.size() == i + 1) {
+                    break;
+                }
                 invokeAgainst = invokeResult.get(fieldStack.get(++i));
                 cls = invokeAgainst.getClass();
             } else {
@@ -144,7 +149,9 @@ public class ContentParserUtil {
             }
         }
 
-        Field[] fields = cls.getDeclaredFields();        
+        Field[] fields = cls.getPackage().getName().startsWith(SWAGGER_MODEL_PACKAGE)
+                ? cls.getDeclaredFields()
+                : new Field[0];  
 
         return Arrays.stream(fields)
                 .filter(field -> !field.getName().equalsIgnoreCase("vendorExtensions"))
