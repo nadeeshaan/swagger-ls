@@ -31,8 +31,17 @@ class FieldIdentifier {
     private Deque<String> fieldStack = new ArrayDeque<>();
     
     private boolean terminateVisit = false;
+    
+    private int cursorLine = -1;
+    
+    private int cursorCol = -1;
 
-    void calculateFieldStack(List<NodeTuple> tuples, int cursorLine, int cursorCol) {
+    FieldIdentifier(int cursorLine, int cursorCol) {
+        this.cursorLine = cursorLine;
+        this.cursorCol = cursorCol;
+    }
+
+    void calculateFieldStack(List<NodeTuple> tuples) {
         for (NodeTuple tuple : tuples) {
             if (terminateVisit) {
                 // During the recursive visit, terminateVisitor is set to true when the desired scope identified
@@ -45,7 +54,7 @@ class FieldIdentifier {
                 // If the cursor is before the evaluating token then break the iteration
                 this.terminateVisit = true;
                 break;
-            } else if (withinMappingNode(tuple, cursorCol, cursorLine)) {
+            } else if (this.withinObjectNode(tuples, tuple)) {
                 /*
                     If the given tuple is a mapping node and the cursor is within the mapping node then add the
                     mapping node key to field stack.
@@ -53,7 +62,14 @@ class FieldIdentifier {
                     necessary (During the last item evaluation).
                  */
                 this.fieldStack.push(key);
-                this.calculateFieldStack(((MappingNode) tuple.getValueNode()).getValue(), cursorLine, cursorCol);
+                /*
+                    If at least one field is not within the current field, it is a scalar node and during the check
+                    for mapping node, will set the visitor termination
+                 */
+                if (terminateVisit) {
+                    break;
+                }
+                this.calculateFieldStack(((MappingNode) tuple.getValueNode()).getValue());
             }
 
             if (!terminateVisit && tuples.indexOf(tuple) == tuples.size() - 1) {
@@ -62,16 +78,58 @@ class FieldIdentifier {
         }
     }
     
-    private static boolean withinMappingNode(NodeTuple tuple, int cursorCol, int cursorLine) {
+    private boolean withinObjectNode(List<NodeTuple> tuples, NodeTuple tuple) {
         /*
             If the cursor within the mapping node, need to check whether cursor col is inside the tuple and also
             nee to check the cursor line within the tuple. Since the tupl
          */
         int tupleNodeEndLine = tuple.getValueNode().getEndMark().getLine();
         int tupleNodeStartCol = tuple.getKeyNode().getStartMark().getColumn();
+        /*
+            If the value node is a scalar node then, you are writing the first field within the object node (YAML parser
+            cannot identify) and handle the visitor termination.
+            ex: 
+            swagger: "2.0"
+            info:
+              title: Simple API overview
+              version: v2
+              contact:
+                name: API Support
+              license:
+                <cursor>
+            servers:
+         */
+        if (tuple.getValueNode() instanceof ScalarNode && this.withinScalarNodeAsObject(tuples, tuple)) {
+            this.terminateVisit = true;
+            return true;
+        }
         return tuple.getValueNode() instanceof MappingNode
-                && cursorCol > tupleNodeStartCol
-                && cursorLine < tupleNodeEndLine;
+                && this.cursorCol > tupleNodeStartCol
+                && this.cursorLine <= tupleNodeEndLine;
+    }
+    
+    private boolean withinScalarNodeAsObject(List<NodeTuple> tuples, NodeTuple tuple) {
+        /*
+            check the cases of
+            info:
+                license
+                    <cursor>
+                    
+            AND
+            
+            info:
+                license
+                    <cursor>
+                contact
+            
+            respectively
+         */
+        int nodeStartCol = tuple.getKeyNode().getStartMark().getColumn();
+        return tuples.indexOf(tuple) == tuples.size() - 1 && this.cursorCol > nodeStartCol
+                || (tuples.indexOf(tuple) < tuples.size() - 1
+                && this.cursorLine < tuples.get(tuples.indexOf(tuple) + 1).getKeyNode().getStartMark().getLine()
+                && this.cursorCol > nodeStartCol);
+
     }
 
     Deque<String> getFieldStack() {
