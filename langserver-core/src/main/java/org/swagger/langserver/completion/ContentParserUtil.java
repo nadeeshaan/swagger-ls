@@ -21,7 +21,9 @@ import io.swagger.parser.util.SwaggerDeserializationResult;
 import joptsimple.internal.Strings;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Position;
+import org.swagger.langserver.DocumentManagerImpl;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.nodes.MappingNode;
@@ -34,7 +36,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.nio.file.Files;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -57,62 +60,68 @@ public class ContentParserUtil {
     private static final String LINE_SEPARATOR = System.lineSeparator();
     
     private static final String SWAGGER_MODEL_PACKAGE = "io.swagger.models";
-    
-    private static Iterable<Node> getYAMLNodeTree(String content) {
-        Constructor constructor = new Constructor();
-        Yaml yaml = new Yaml(constructor);
-        return yaml.composeAll(new InputStreamReader(new ByteArrayInputStream(content.getBytes())));
-    }
-
-    /**
-     * Mapping node where the cursor belongs to.
-     *
-     * @param line              Cursor Line
-     * @param content           Document Content to Parse
-     */
-    public static void getMappingNodeForCursor(int line, String content) {
-        Iterable<Node> nodes = getYAMLNodeTree(content);
-        nodes.forEach(node -> {
-            if (node instanceof MappingNode) {
-                ((MappingNode) node).getValue().forEach(nodeTuple -> {
-                    // TODO: Need Implementation
-                });
-            }
-        });
-    }
 
     /**
      * Get the modified document content.
      * 
      * Note: Here replace the line content at the cursor with spaces to avoid parser issues
      * 
-     * @param fileUri           Document uri
-     * @param cursorLine        Current cursor line
-     * @return {@link String}   Modified content
-     * @throws IOException      IOException if the file read fails
+     * @param completionParams          Original file content to modify
+     * @return {@link ModifiedContent}  Modified content
+     * @throws IOException              IOException if the file read fails
+     * @throws URISyntaxException       URI Syntax Exception
      */
-    public String modifyContent(String fileUri, int cursorLine) throws IOException {
-        String content = new String(Files.readAllBytes(Paths.get(URI.create(fileUri))));
-        String[] lines = content.split("\\r?\\n");
-        lines[cursorLine] = lines[cursorLine].replaceAll("\\w", " ");
-        return Strings.join(lines, LINE_SEPARATOR);
+    private static ModifiedContent getModifiedContent(CompletionParams completionParams) throws IOException,
+            URISyntaxException {
+        Position position = completionParams.getPosition();
+        int cursorLine = position.getLine();
+        Path path = Paths.get(new URI(completionParams.getTextDocument().getUri()));
+        String originalContent = DocumentManagerImpl.getInstance().getFileContent(path);
+        
+        String[] lines = originalContent.split("\\r?\\n");
+        lines[cursorLine] = lines[cursorLine].replaceAll("\\S", "");
+        Position modifiedPosition = new Position(position.getLine(), lines[cursorLine].length());
+        return new ModifiedContent(Strings.join(lines, LINE_SEPARATOR), modifiedPosition);
     }
+
     
-    public static List<CompletionItem> getCompletions(String content, Position position) throws NoSuchMethodException,
-            InvocationTargetException, IllegalAccessException {
+
+    /**
+     * Get the completion items for the given parameters.
+     *
+     * @param completionParams              Completion parameters triggered from the client
+     * @return {@link List}                 List of completion Items
+     * @throws NoSuchMethodException        Exception while extracting the method from reflection
+     * @throws InvocationTargetException    Exception while accessing the method
+     * @throws IllegalAccessException       Exception while accessing the method
+     * @throws URISyntaxException           Invalid URI
+     * @throws IOException                  Error reading file URI
+     */
+    public static List<CompletionItem> getCompletions(CompletionParams completionParams) throws NoSuchMethodException,
+            InvocationTargetException, IllegalAccessException, URISyntaxException, IOException {
+
         Deque<String> fieldStack = new ArrayDeque<>();
-        SwaggerDeserializationResult swaggerDeserializationResult = new SwaggerParser().readWithInfo(content);
-        Constructor constructor = new Constructor();
-        Yaml yaml = new Yaml(constructor);
-        Iterable<Node> iterable = yaml.composeAll(new InputStreamReader(new ByteArrayInputStream(content.getBytes())));
+        Yaml yaml = new Yaml(new Constructor());
+
+        ModifiedContent modifiedContent = getModifiedContent(completionParams);
+        String sourceContent = modifiedContent.getContent();
+        Position modifiedPosition = modifiedContent.getPosition();
+        
+
+        SwaggerDeserializationResult swaggerDeserializationResult = new SwaggerParser().readWithInfo(sourceContent);
+        Iterable<Node> iterable = yaml.composeAll(new InputStreamReader(
+                new ByteArrayInputStream(sourceContent.getBytes())));
+
         iterable.forEach(o -> {
-            FieldIdentifier fieldIdentifier = new FieldIdentifier(position.getLine(), position.getCharacter());
+            FieldIdentifier fieldIdentifier = new FieldIdentifier(modifiedPosition.getLine(),
+                    modifiedPosition.getCharacter());
             fieldIdentifier
                     .calculateFieldStack(((MappingNode) o).getValue());
             if (!fieldIdentifier.getFieldStack().isEmpty()) {
                 fieldStack.addAll(fieldIdentifier.getFieldStack());
             }
         });
+
         Swagger swagger = swaggerDeserializationResult.getSwagger();
         List<String> fields = new ArrayList<>(fieldStack);
         Collections.reverse(fields);
@@ -156,5 +165,23 @@ public class ContentParserUtil {
         return Arrays.stream(fields)
                 .filter(field -> !field.getName().equalsIgnoreCase("vendorExtensions"))
                 .map(Field::getName).collect(Collectors.toList());
+    }
+    
+    private static class ModifiedContent {
+        private String content;
+        private Position position;
+        
+        private ModifiedContent(String content, Position position) {
+            this.content = content;
+            this.position = position;
+        }
+
+        String getContent() {
+            return content;
+        }
+
+        Position getPosition() {
+            return position;
+        }
     }
 }
