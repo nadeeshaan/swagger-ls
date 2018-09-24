@@ -22,18 +22,13 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "swaggerls",
+      "title": "swagger",
       "properties": {
         "javahome": {
           "type": "string",
           "default": "",
           "description": "Specifies the path to the java home directory"
         }
-      }
-    },
-    "configurationDefaults": {
-      "[ballerina]": {
-        "editor.wordBasedSuggestions": false
       }
     }
   },

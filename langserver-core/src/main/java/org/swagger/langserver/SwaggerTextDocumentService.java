@@ -33,7 +33,6 @@ import org.eclipse.lsp4j.DocumentRangeFormattingParams;
 import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.Location;
-import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.ReferenceParams;
 import org.eclipse.lsp4j.RenameParams;
 import org.eclipse.lsp4j.SignatureHelp;
@@ -45,10 +44,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.swagger.langserver.completion.ContentParserUtil;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,9 +67,7 @@ public class SwaggerTextDocumentService implements TextDocumentService {
         return CompletableFuture.supplyAsync(() -> {
             List<CompletionItem> completionItems;
             try {
-                Path path = Paths.get(new URI(completionParams.getTextDocument().getUri()));
-                Position position = completionParams.getPosition();
-                completionItems = ContentParserUtil.getCompletions(documentManager.getFileContent(path), position);
+                completionItems = ContentParserUtil.getCompletions(completionParams);
             } catch (Exception e) {
                 completionItems = new ArrayList<>();
             }

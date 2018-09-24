@@ -55,6 +55,7 @@ public class SwaggerLanguageServer implements LanguageServer, LanguageClientAwar
     public CompletableFuture<InitializeResult> initialize(InitializeParams initializeParams) {
         final InitializeResult initializeResult = new InitializeResult(new ServerCapabilities());
         initializeResult.getCapabilities().setTextDocumentSync(TextDocumentSyncKind.Full);
+        CompletionOptions completionOptions = new CompletionOptions();
         initializeResult.getCapabilities().setCompletionProvider(new CompletionOptions());
         return CompletableFuture.supplyAsync(() -> initializeResult);
     }
